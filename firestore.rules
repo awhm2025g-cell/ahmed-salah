@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // Phase 3: Primitive Definitions & Helpers
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() { return request.auth != null; }
+    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function hasRole(role) {
+      return isSignedIn() && getUserData().role == role;
+    }
+    
+    function hasStageAccess(stage) {
+      return isSignedIn() && (getUserData().stage == 'all' || getUserData().stage == stage);
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // -------------------------------------------------------------------------
+    // Pillar 2: Validation Blueprints
+    // -------------------------------------------------------------------------
+    
+    function isValidTeacher(data) {
+      return data.keys().hasAll(['name', 'stage', 'subject', 'active']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.stage in ['primary', 'middle', 'secondary'] &&
+             data.subject is string && data.subject.size() <= 50;
+    }
+
+    function isValidEvaluation(data) {
+      return data.keys().hasAll(['teacherId', 'evaluatorId', 'scores', 'totalScore', 'status']) &&
+             isValidId(data.teacherId) &&
+             data.evaluatorId == request.auth.uid &&
+             data.totalScore is number && data.totalScore >= 0 && data.totalScore <= 100 &&
+             data.status in ['draft', 'submitted', 'approved'];
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['userId', 'userName', 'action', 'targetId', 'targetType', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.action is string && data.action.size() <= 100 &&
+             data.targetType in ['evaluation', 'user', 'teacher', 'config'];
+    }
+
+    // -------------------------------------------------------------------------
+    // Pillar 0: Global Safety Net
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (hasRole('admin') || userId == request.auth.uid); // Self-init or Admin creation
+      allow update: if hasRole('admin') || (userId == request.auth.uid && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'stage']));
+      allow delete: if hasRole('admin');
+    }
+
+    // Teachers Collection
+    match /teachers/{teacherId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (hasRole('admin') || hasRole('supervision_director'));
+      allow update: if isSignedIn() && (hasRole('admin') || hasRole('supervision_director'));
+      allow delete: if hasRole('admin');
+    }
+
+    // Evaluations Collection
+    match /evaluations/{evalId} {
+      allow read: if isSignedIn() && (
+        hasRole('admin') || 
+        hasRole('supervision_director') ||
+        existing().evaluatorId == request.auth.uid ||
+        hasStageAccess(get(/databases/$(database)/documents/teachers/$(existing().teacherId)).data.stage)
+      );
+      
+      allow create: if isSignedIn() && 
+                    isValidEvaluation(incoming()) &&
+                    exists(/databases/$(database)/documents/teachers/$(incoming().teacherId));
+      
+      allow update: if isSignedIn() && 
+                    // Cannot update if submitted unless admin
+                    (existing().status != 'submitted' || hasRole('admin')) &&
+                    (
+                      // Action: Edit Draft
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['scores', 'totalScore', 'notes', 'updatedAt', 'status'])) ||
+                      // Action: Add AI Analysis
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['aiAnalysis']))
+                    );
+      
+      allow delete: if hasRole('admin');
+    }
+
+    // Config Collection
+    match /config/app {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+
+    // Audit Logs Collection
+    match /audit_logs/{logId} {
+      allow read: if hasRole('admin') || hasRole('supervision_director');
+      allow create: if isSignedIn() && isValidAuditLog(incoming());
+      allow update, delete: if false; // Audit logs are immutable
+    }
+  }
+}

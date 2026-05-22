@@ -1,0 +1,8 @@
+{
+  "name": "نظام تقييم الأداء الوظيفي للمعلمين",
+  "description": "نظام رقمي متكامل لتقييم الأداء الوظيفي للمعلمين بمدارس الأوائل الأهلية، يدعم التحليل بالذكاء الاصطناعي وتقارير متقدمة بتصميم عصري.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

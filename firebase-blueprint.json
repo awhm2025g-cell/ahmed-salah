@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with specific roles and school branch/stage assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "supervision_director", "school_director", "school_vice_principal", "supervisor"] },
+        "stage": { "type": "string", "enum": ["primary", "middle", "secondary", "all"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "stage"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Teacher profile in the school.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "stage": { "type": "string", "enum": ["primary", "middle", "secondary"] },
+        "subject": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "stage"]
+    },
+    "Evaluation": {
+      "title": "Evaluation",
+      "description": "A single performance evaluation for a teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "evaluatorId": { "type": "string" },
+        "evaluatorName": { "type": "string" },
+        "evaluatorRole": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "semester": { "type": "string" },
+        "scores": { "type": "object" },
+        "totalScore": { "type": "number" },
+        "notes": { "type": "object" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["draft", "submitted", "approved"] },
+        "digitallySigned": { "type": "boolean" },
+        "generalNotes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherId", "evaluatorId", "scores", "totalScore", "status"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "schoolName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "semester": { "type": "string" },
+        "headerLeft": { "type": "string" },
+        "headerCenter": { "type": "string" },
+        "headerRight": { "type": "string" },
+        "footerText": { "type": "string" },
+        "reportTitle": { "type": "string" },
+        "tablePadding": { "type": "number", "description": "Row padding in pixels" },
+        "reportFontSize": { "type": "number", "description": "Main font size in pixels" },
+        "reportLineHeight": { "type": "number", "description": "Line height for report body" },
+        "marginTop": { "type": "number", "description": "Top margin in mm" },
+        "marginBottom": { "type": "number", "description": "Bottom margin in mm" },
+        "marginLeft": { "type": "number", "description": "Left margin in mm" },
+        "marginRight": { "type": "number", "description": "Right margin in mm" },
+        "showAiInPrint": { "type": "boolean", "description": "Whether to show AI analysis in the printed report" },
+        "orientation": { "type": "string", "enum": ["portrait", "landscape"], "description": "Page orientation for printed reports" },
+        "footerFontSize": { "type": "number", "description": "Footer font size in pixels" },
+        "footerAlignment": { "type": "string", "enum": ["right", "center", "left"], "description": "Footer text alignment" },
+        "headerLeftAlign": { "type": "string", "enum": ["right", "center", "left"], "description": "Header left section text alignment" },
+        "headerCenterAlign": { "type": "string", "enum": ["right", "center", "left"], "description": "Header center section text alignment" },
+        "headerRightAlign": { "type": "string", "enum": ["right", "center", "left"], "description": "Header right section text alignment" },
+        "primaryColor": { "type": "string", "description": "Primary color for printed reports (hex code)" },
+        "secondaryColor": { "type": "string", "description": "Secondary color for printed reports (hex code)" },
+        "textColor": { "type": "string", "description": "Body text color for printed reports (hex code)" },
+        "borderColor": { "type": "string", "description": "Border color for printed reports (hex code)" },
+        "academicYears": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "active": { "type": "boolean" },
+              "archived": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Log entry for tracking system actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["evaluation", "user", "teacher", "config"] },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "action", "targetId", "targetType", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles and permissions."
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Teachers list."
+    },
+    "/evaluations/{evaluationId}": {
+      "schema": "Evaluation",
+      "description": "Evaluation documents."
+    },
+    "/config/app": {
+      "schema": "AppConfig",
+      "description": "Application wide configuration."
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System audit logs."
+    }
+  }
+}
